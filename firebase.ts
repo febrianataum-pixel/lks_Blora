@@ -7,24 +7,48 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseAppletConfig from './firebase-applet-config.json';
 
 const getFirebaseConfig = () => {
-  // Priority: 1. Environment Variables (VITE_), 2. Internal Config File
+  const envKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+
+  // Log all VITE variables starting with FIREBASE for debugging (keys truncated)
+  console.log("Variabel Environment yang terdeteksi:");
+  Object.keys(import.meta.env).forEach(key => {
+    if (key.includes('FIREBASE')) {
+      const val = import.meta.env[key];
+      console.log(`- ${key}: ${val ? (val.length > 8 ? val.substring(0, 8) + '...' : '***') : 'Kosong'}`);
+    }
+  });
+
+  // Jika ada salah satu Env Var yang diisi, kita prioritaskan Env Var untuk semua field agar tidak campur
+  if (envKey || envProjectId) {
+    console.log("Firebase: Menggunakan konfigurasi dari Environment Variables (Settings).");
+    return {
+      apiKey: envKey || "",
+      authDomain: envProjectId ? `${envProjectId}.firebaseapp.com` : "",
+      projectId: envProjectId || "",
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (envProjectId ? `${envProjectId}.firebasestorage.app` : ""),
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
+    };
+  }
+
+  console.warn("Firebase: Tidak ada VITE_FIREBASE_API_KEY di Environment Variables. Menggunakan konfigurasi default.");
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseAppletConfig.apiKey,
-    authDomain: import.meta.env.VITE_FIREBASE_PROJECT_ID 
-      ? `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com` 
-      : firebaseAppletConfig.authDomain,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseAppletConfig.projectId,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET 
-      || (import.meta.env.VITE_FIREBASE_PROJECT_ID ? `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app` : null)
-      || firebaseAppletConfig.storageBucket,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseAppletConfig.appId,
+    apiKey: firebaseAppletConfig.apiKey,
+    authDomain: firebaseAppletConfig.authDomain,
+    projectId: firebaseAppletConfig.projectId,
+    storageBucket: firebaseAppletConfig.storageBucket,
+    appId: firebaseAppletConfig.appId,
   };
 };
 
 const firebaseConfig = getFirebaseConfig();
 
-if (!firebaseConfig.apiKey) {
-  console.error("Firebase API Key is missing! Pastikan sudah mengisi Environment Variables di menu Settings.");
+// Logging untuk mempermudah debug (pastikan key tidak bocor sepenuhnya di log publik)
+console.log(`Firebase Project ID: ${firebaseConfig.projectId}`);
+if (firebaseConfig.apiKey) {
+  console.log(`Firebase API Key: ${firebaseConfig.apiKey.substring(0, 8)}...`);
+} else {
+  console.error("Firebase API Key is missing!");
 }
 
 // Initialize Firebase

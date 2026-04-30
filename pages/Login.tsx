@@ -16,7 +16,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, appName, appLogo }) => {
   const [error, setError] = useState('');
 
   const handleGoogleLogin = async () => {
-    if (!auth) return;
+    if (!auth) {
+      setError('Konfigurasi Firebase belum siap. Pastikan API Key dan Project ID sudah diatur di Environment Variables.');
+      return;
+    }
     setIsConnecting(true);
     setError('');
     try {
@@ -37,7 +40,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, appName, appLogo }) => {
       onLogin(userAccount);
     } catch (err: any) {
       console.error("Login Error:", err);
-      setError(err.message || 'Gagal login via Google.');
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Metode Login Google belum diaktifkan di Firebase Console.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Domain ini belum didaftarkan di Authorized Domains Firebase Console.');
+      } else {
+        setError(err.message || 'Gagal login via Google.');
+      }
     } finally {
       setIsConnecting(false);
     }

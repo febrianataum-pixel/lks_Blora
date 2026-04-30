@@ -78,7 +78,10 @@ const App: React.FC = () => {
 
   // Auth Listener
   useEffect(() => {
-    if (!auth) return;
+    if (!auth) {
+      setAuthLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         const userAccount: UserAccount = {

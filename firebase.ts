@@ -4,18 +4,28 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
+import firebaseAppletConfig from './firebase-applet-config.json';
+
 const getFirebaseConfig = () => {
-  // Use environment variables provided by the platform
+  // Priority: 1. Environment Variables (VITE_), 2. Internal Config File
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseAppletConfig.apiKey,
+    authDomain: import.meta.env.VITE_FIREBASE_PROJECT_ID 
+      ? `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com` 
+      : firebaseAppletConfig.authDomain,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseAppletConfig.projectId,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET 
+      || (import.meta.env.VITE_FIREBASE_PROJECT_ID ? `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app` : null)
+      || firebaseAppletConfig.storageBucket,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseAppletConfig.appId,
   };
 };
 
 const firebaseConfig = getFirebaseConfig();
+
+if (!firebaseConfig.apiKey) {
+  console.error("Firebase API Key is missing! Pastikan sudah mengisi Environment Variables di menu Settings.");
+}
 
 // Initialize Firebase
 const app = (getApps().length === 0 && firebaseConfig.apiKey) 

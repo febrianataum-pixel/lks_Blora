@@ -1,0 +1,8 @@
+{
+  "name": "SI-LKS Blora",
+  "description": "Sistem Informasi Manajemen Lembaga Kesejahteraan Sosial (LKS) Kabupaten Blora untuk Dinas Sosial. Dilengkapi dashboard analitik, manajemen data LKS, dan pendataan penerima manfaat (PM) dengan tampilan modern dan responsif.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}

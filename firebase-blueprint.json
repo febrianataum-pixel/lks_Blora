@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "lks": {
+      "title": "Lembaga Kesejahteraan Sosial",
+      "description": "Data lembaga LKS",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "alamat": { "type": "string" },
+        "kecamatan": { "type": "string" },
+        "ketua": { "type": "string" },
+        "kontak": { "type": "string" },
+        "dokumen": { "type": "object" }
+      },
+      "required": ["id", "nama"]
+    },
+    "pm": {
+      "title": "Penerima Manfaat",
+      "description": "Data penerima manfaat (PM)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "alamat": { "type": "string" },
+        "nik": { "type": "string" },
+        "lksId": { "type": "string" }
+      },
+      "required": ["id", "nama", "lksId"]
+    },
+    "projectConfig": {
+      "title": "Project Configuration",
+      "description": "Global app settings and small shared state",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "appLogo": { "type": "string" },
+        "allUsers": { "type": "array" },
+        "lettersData": { "type": "array" },
+        "notifications": { "type": "array" },
+        "lastSync": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "projectConfig",
+      "description": "Global configuration document"
+    },
+    "/projects/{projectId}/lks/{lksId}": {
+      "schema": "lks",
+      "description": "Collection of LKS documents"
+    },
+    "/projects/{projectId}/pm/{pmId}": {
+      "schema": "pm",
+      "description": "Collection of Penerima Manfaat documents"
+    }
+  }
+}

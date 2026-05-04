@@ -4,11 +4,11 @@ import {
   Search, Plus, X, Trash2, Building2, MapPin, Printer, FileSpreadsheet, 
   ChevronRight, Award, Users, Save, Edit3, Info, UploadCloud, Download, 
   FileCheck, AlertTriangle, FileBarChart, Map as MapIcon, Landmark, 
-  Calendar, Phone, CheckCircle2, Loader2, DollarSign, FileType, 
+  Calendar, Phone, CheckCircle2, XCircle, Loader2, DollarSign, FileType, 
   Activity, Compass, Upload, PenLine, Layout, ShieldCheck, Mail, Globe, User, Navigation,
   Hash, MessageCircle, FileUp, Briefcase, FileOutput, FileInput, Cloud
 } from 'lucide-react';
-import { LKS, LKSDocuments, BantuanLKS } from '../types';
+import { LKS, LKSDocuments, BantuanLKS, LKSStatus } from '../types';
 import { KECAMATAN_BLORA, JENIS_BANTUAN_LIST } from '../constants';
 import { uploadFile, storage } from '../firebase';
 
@@ -239,6 +239,15 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
     if (onNotify) onNotify('Export Data', 'File CSV Berhasil Dibuat');
   };
 
+  const handleToggleVerval = (e: React.MouseEvent, lks: LKS) => {
+    e.stopPropagation();
+    const newStatus: LKSStatus = lks.statusAktif === 'Aktif' ? 'Tidak Aktif' : 'Aktif';
+    const updatedLks: LKS = { ...lks, statusAktif: newStatus };
+    
+    setData(prev => prev.map(item => item.id === lks.id ? updatedLks : item));
+    if (onNotify) onNotify('Verval LKS', `${lks.nama} menjadi ${newStatus}`);
+  };
+
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -380,12 +389,19 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
       {/* TAMPILAN MOBILE: Card View */}
       <div className="lg:hidden grid grid-cols-1 gap-4">
         {filteredData.map((item) => (
-          <div key={item.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 group" onClick={() => { setSelectedLks(item); setIsEditing(true); }}>
+          <div 
+            key={item.id} 
+            className={`bg-white rounded-[2rem] p-6 shadow-sm border-y border-r border-slate-100 group relative overflow-hidden transition-all active:scale-[0.98] ${item.statusAktif === 'Aktif' ? 'border-l-8 border-l-emerald-500' : 'border-l-8 border-l-rose-500'}`} 
+            onClick={() => { setSelectedLks(item); setIsEditing(true); }}
+          >
             <div className="flex justify-between items-start mb-4">
               <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner"><Building2 size={24}/></div>
-              <div className="text-right">
+              <div className="flex flex-col items-end gap-1">
                 <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${item.statusAkreditasi === 'Belum' ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-600'}`}>
                   {item.statusAkreditasi === 'Belum' ? 'Bukan Akred' : `Grade ${item.statusAkreditasi}`}
+                </div>
+                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${item.statusAktif === 'Aktif' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  {item.statusAktif}
                 </div>
               </div>
             </div>
@@ -396,6 +412,9 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
             </div>
             <div className="flex items-center justify-between pt-4 border-t border-slate-50 gap-2">
                <div className="flex gap-2">
+                  <button onClick={(e) => handleToggleVerval(e, item)} className={`p-2.5 rounded-xl active:scale-90 transition-all ${item.statusAktif === 'Aktif' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`} title="Verval Status">
+                    {item.statusAktif === 'Aktif' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
+                  </button>
                   <button onClick={(e) => { e.stopPropagation(); handleWhatsApp(item.telpKetua); }} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl active:scale-90 transition-all"><MessageCircle size={18} /></button>
                   <button onClick={(e) => { e.stopPropagation(); handleNavigate(item.koordinat.lat, item.koordinat.lng); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl active:scale-90 transition-all"><Compass size={18} /></button>
                   <button onClick={(e) => { e.stopPropagation(); setReportLks(item); }} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl active:scale-90 transition-all"><FileBarChart size={18} /></button>
@@ -423,9 +442,18 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredData.map((item) => (
-                <tr key={item.id} className="hover:bg-blue-50/40 transition-colors cursor-pointer group" onClick={() => { setSelectedLks(item); setIsEditing(true); }}>
+                <tr 
+                  key={item.id} 
+                  className={`hover:bg-blue-50/40 transition-all cursor-pointer group border-l-8 ${item.statusAktif === 'Aktif' ? 'border-l-emerald-500' : 'border-l-rose-500'}`} 
+                  onClick={() => { setSelectedLks(item); setIsEditing(true); }}
+                >
                   <td className="px-8 py-6">
-                    <p className="text-base font-black text-slate-800 uppercase leading-tight">{item.nama}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-black text-slate-800 uppercase leading-tight">{item.nama}</p>
+                      <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${item.statusAktif === 'Aktif' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                        {item.statusAktif}
+                      </div>
+                    </div>
                     <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase mt-1"><MapPin size={12} className="text-rose-500" /> {item.desa}, {item.kecamatan}</span>
                   </td>
                   <td className="px-8 py-6">
@@ -445,6 +473,14 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                   </td>
                   <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={(e) => handleToggleVerval(e, item)} 
+                        className={`p-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2 font-black text-[9px] uppercase tracking-widest ${item.statusAktif === 'Aktif' ? 'bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'}`}
+                        title="Verval Status"
+                      >
+                        {item.statusAktif === 'Aktif' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
+                        <span className="hidden xl:inline">{item.statusAktif === 'Aktif' ? 'NON-AKTIFKAN' : 'AKTIFKAN'}</span>
+                      </button>
                       <button onClick={() => handleNavigate(item.koordinat.lat, item.koordinat.lng)} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Buka Lokasi">
                         <Compass size={20} />
                       </button>
@@ -493,6 +529,23 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                   <div className="lg:col-span-2 space-y-1"><label className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase ml-1">Alamat Lengkap</label><input type="text" value={selectedLks.alamat} onChange={e => handleChange('alamat', e.target.value)} className="w-full px-4 lg:px-5 py-3 lg:py-4 bg-slate-50 border rounded-xl lg:rounded-2xl text-sm outline-none" /></div>
                   <div className="space-y-1"><label className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase ml-1">Tanggal Berdiri</label><input type="date" value={selectedLks.tanggalPendirian} onChange={e => handleChange('tanggalPendirian', e.target.value)} className="w-full px-4 lg:px-5 py-3 lg:py-4 bg-slate-50 border rounded-xl lg:rounded-2xl font-bold text-sm outline-none text-blue-600" /></div>
                   <div className="space-y-1"><label className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase ml-1">WhatsApp Ketua</label><input type="text" value={selectedLks.telpKetua} onChange={e => handleChange('telpKetua', e.target.value)} className="w-full px-4 lg:px-5 py-3 lg:py-4 bg-slate-50 border rounded-xl lg:rounded-2xl font-black text-blue-600 text-sm outline-none" /></div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase ml-1">Status Verval</label>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleChange('statusAktif', 'Aktif')} 
+                        className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border-2 ${selectedLks.statusAktif === 'Aktif' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-emerald-200'}`}
+                      >
+                        Aktif
+                      </button>
+                      <button 
+                        onClick={() => handleChange('statusAktif', 'Tidak Aktif')} 
+                        className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border-2 ${selectedLks.statusAktif === 'Tidak Aktif' ? 'bg-rose-500 border-rose-500 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-rose-200'}`}
+                      >
+                        Tidak Aktif
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
 

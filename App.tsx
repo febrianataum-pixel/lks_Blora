@@ -40,16 +40,22 @@ const App: React.FC = () => {
 
   const [appName, setAppName] = useState(() => localStorage.getItem('si-lks-appname') || 'SI-LKS BLORA');
   const [appLogo, setAppLogo] = useState<string | null>(() => localStorage.getItem('si-lks-applogo') || null);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>({
-    id: 'system-admin',
-    username: 'admin',
-    password: '',
-    nama: 'Administrator Sistem',
-    role: 'Admin',
-    createdAt: new Date().toISOString()
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('si-lks-islogged') === 'true');
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    const saved = localStorage.getItem('si-lks-currentuser');
+    if (saved) return JSON.parse(saved);
+    // Default system admin for convenience as requested
+    return {
+      id: 'system-admin',
+      username: 'admin',
+      password: '',
+      nama: 'Administrator Sistem',
+      role: 'Admin',
+      createdAt: new Date().toISOString()
+    };
   });
   const [authLoading, setAuthLoading] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const [allUsers, setAllUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem('si-lks-allusers');
@@ -543,14 +549,56 @@ const App: React.FC = () => {
                 </AnimatePresence>
              </div>
              
-             <button onClick={() => setActivePage('profile')} className="flex items-center gap-2.5 hover:bg-white/50 p-1 pr-3 rounded-2xl transition-all border border-transparent hover:border-black/5">
-                <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/10">
-                   {currentUser?.avatar ? <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <img src={`https://ui-avatars.com/api/?name=${currentUser?.nama}&background=2563eb&color=fff`} alt="Avatar" />}
-                </div>
-                <div className="hidden md:block text-left">
-                   <p className="text-[12px] font-bold text-slate-900 leading-none">{currentUser?.nama}</p>
-                </div>
-             </button>
+             <div className="relative">
+               <button 
+                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} 
+                 className="flex items-center gap-2.5 hover:bg-white/50 p-1 pr-3 rounded-2xl transition-all border border-transparent hover:border-black/5"
+               >
+                  <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-black/10">
+                     {currentUser?.avatar ? <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <img src={`https://ui-avatars.com/api/?name=${currentUser?.nama}&background=2563eb&color=fff`} alt="Avatar" />}
+                  </div>
+                  <div className="hidden md:block text-left">
+                     <p className="text-[12px] font-bold text-slate-900 leading-none">{currentUser?.nama}</p>
+                     <p className="text-[10px] text-slate-500 font-medium mt-1 leading-none uppercase">{currentUser?.role}</p>
+                  </div>
+               </button>
+
+               <AnimatePresence>
+                 {isProfileMenuOpen && (
+                   <>
+                     <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)}></div>
+                     <motion.div
+                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                       animate={{ opacity: 1, y: 0, scale: 1 }}
+                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                       className="absolute top-12 right-0 w-56 bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl border border-black/5 z-50 overflow-hidden"
+                     >
+                       <div className="p-4 border-b border-black/5 bg-white/50 text-center">
+                          <p className="text-xs font-black text-slate-800">{currentUser?.nama}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{currentUser?.username}</p>
+                       </div>
+                       <div className="p-2">
+                         <button 
+                           onClick={() => { setActivePage('profile'); setIsProfileMenuOpen(false); }}
+                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-all text-sm font-bold"
+                         >
+                           <UserCircle size={18} />
+                           Profil Saya
+                         </button>
+                         <div className="h-px bg-black/5 my-1 mx-2"></div>
+                         <button 
+                           onClick={() => { handleLogout(); setIsProfileMenuOpen(false); }}
+                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all text-sm font-bold"
+                         >
+                           <LogOut size={18} />
+                           Keluar
+                         </button>
+                       </div>
+                     </motion.div>
+                   </>
+                 )}
+               </AnimatePresence>
+             </div>
           </div>
         </header>
 

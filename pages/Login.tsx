@@ -39,11 +39,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, appName, appLogo }) => {
       
       onLogin(userAccount);
     } catch (err: any) {
-      console.error("Login Error:", err);
+      console.error("Login Error Details:", err);
       if (err.code === 'auth/operation-not-allowed') {
-        setError('Metode Login Google belum diaktifkan di Firebase Console.');
+        setError('Login Google belum diaktifkan. Silakan aktifkan "Google" di Firebase Console -> Authentication -> Sign-in method.');
       } else if (err.code === 'auth/unauthorized-domain') {
-        setError('Domain ini belum didaftarkan di Authorized Domains Firebase Console.');
+        setError(`Domain ini (${window.location.hostname}) belum didaftarkan di "Authorized Domains" di Firebase Console.`);
+      } else if (err.code === 'auth/api-key-not-valid') {
+        setError('API Key Firebase tidak valid. Jika Anda menggunakan Project ID kustom, pastikan API Key-nya benar dan domain ini tidak diblokir di Google Cloud Console.');
+      } else if (err.message?.includes('api-key-not-valid')) {
+        setError('API Key Firebase tidak valid. Pastikan API Key di Environment Variables sudah benar dan sesuai dengan Project ID.');
       } else {
         setError(err.message || 'Gagal login via Google.');
       }

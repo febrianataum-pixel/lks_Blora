@@ -7,44 +7,45 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseAppletConfig from './firebase-applet-config.json';
 
 const getFirebaseConfig = () => {
-  const envKey = import.meta.env.VITE_FIREBASE_API_KEY;
-  const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  const envKey = import.meta.env.VITE_FIREBASE_API_KEY?.trim().replace(/^["'](.+)["']$/, '$1');
+  const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim().replace(/^["'](.+)["']$/, '$1');
+  const envAppId = import.meta.env.VITE_FIREBASE_APP_ID?.trim().replace(/^["'](.+)["']$/, '$1');
+  const envStorageBucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET?.trim().replace(/^["'](.+)["']$/, '$1');
 
-  // Log all VITE variables starting with FIREBASE for debugging (keys truncated)
-  console.log("Variabel Environment yang terdeteksi:");
-  Object.keys(import.meta.env).forEach(key => {
-    if (key.includes('FIREBASE')) {
-      const val = import.meta.env[key];
-      console.log(`- ${key}: ${val ? (val.length > 8 ? val.substring(0, 8) + '...' : '***') : 'Kosong'}`);
-    }
-  });
-
-  // Jika ada salah satu Env Var yang diisi, kita prioritaskan Env Var untuk semua field agar tidak campur
-  if (envKey || envProjectId) {
-    console.log("Firebase: Menggunakan konfigurasi dari Environment Variables (Settings).");
-    return {
-      apiKey: envKey || "",
-      authDomain: envProjectId ? `${envProjectId}.firebaseapp.com` : "",
-      projectId: envProjectId || "",
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (envProjectId ? `${envProjectId}.firebasestorage.app` : ""),
-      appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
-    };
-  }
-
-  console.warn("Firebase: Tidak ada VITE_FIREBASE_API_KEY di Environment Variables. Menggunakan konfigurasi default.");
-  return {
+  // Start with default auto-provisioned config
+  const config = {
     apiKey: firebaseAppletConfig.apiKey,
     authDomain: firebaseAppletConfig.authDomain,
     projectId: firebaseAppletConfig.projectId,
     storageBucket: firebaseAppletConfig.storageBucket,
     appId: firebaseAppletConfig.appId,
   };
+
+  // Override with environment variables if provided
+  if (envKey) config.apiKey = envKey;
+  if (envProjectId) {
+    config.projectId = envProjectId;
+    config.authDomain = `${envProjectId}.firebaseapp.com`;
+  }
+  if (envAppId) config.appId = envAppId;
+  if (envStorageBucket) config.storageBucket = envStorageBucket;
+
+  // Log detected environment variables (keys truncated for safety)
+  console.log("Firebase Configuration Check:");
+  if (envKey || envProjectId || envAppId || envStorageBucket) {
+    console.log("- Using some custom Environment Variables (VITE_*)");
+  } else {
+    console.log("- Using default auto-provisioned configuration.");
+  }
+  
+  return config;
 };
 
 const firebaseConfig = getFirebaseConfig();
 
 // Logging untuk mempermudah debug (pastikan key tidak bocor sepenuhnya di log publik)
 console.log(`Firebase Project ID: ${firebaseConfig.projectId}`);
+console.log(`Request Origin: ${typeof window !== 'undefined' ? window.location.origin : 'Server-side'}`);
 if (firebaseConfig.apiKey) {
   console.log(`Firebase API Key: ${firebaseConfig.apiKey.substring(0, 8)}...`);
 } else {
@@ -52,9 +53,19 @@ if (firebaseConfig.apiKey) {
 }
 
 // Initialize Firebase
-const app = (getApps().length === 0 && firebaseConfig.apiKey) 
-  ? initializeApp(firebaseConfig) 
-  : (getApps().length > 0 ? getApp() : null);
+const app = (() => {
+  if (getApps().length > 0) return getApp();
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "") {
+    console.warn("Firebase: API Key kosong, aplikasi tidak diinisialisasi.");
+    return null;
+  }
+  try {
+    return initializeApp(firebaseConfig);
+  } catch (err) {
+    console.error("Firebase Initialization Error:", err);
+    return null;
+  }
+})();
 
 export const db = app ? getFirestore(app) : null;
 export const storage = app ? getStorage(app) : null;

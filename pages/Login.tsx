@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { ShieldCheck, LogIn, RefreshCw, User, Lock, Settings, Database, Save, X } from 'lucide-react';
+import { ShieldCheck, LogIn, RefreshCw, User, Lock, Settings, Database, Save, X, Globe } from 'lucide-react';
 import { UserAccount } from '../types';
-import { db, firebaseConfig } from '../firebase';
+import { db, firebaseConfig, auth, googleProvider } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { signInWithPopup } from 'firebase/auth';
 
 interface LoginProps {
   onLogin: (user: UserAccount) => void;
@@ -38,6 +39,42 @@ const Login: React.FC<LoginProps> = ({ onLogin, appName, appLogo }) => {
     localStorage.removeItem('si-lks-firebase-appid');
     localStorage.removeItem('si-lks-firebase-storage');
     window.location.reload();
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!auth) {
+      setError('Konfigurasi Firebase belum siap. Cek Setelan Database (API Key).');
+      return;
+    }
+    setIsConnecting(true);
+    setError('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      const userAccount: UserAccount = {
+        id: user.uid,
+        username: user.email || user.uid,
+        password: '',
+        nama: user.displayName || 'User',
+        role: 'Admin',
+        avatar: user.photoURL || undefined,
+        createdAt: new Date().toISOString()
+      };
+      
+      onLogin(userAccount);
+    } catch (err: any) {
+      console.error("Google Login Error:", err);
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Login Google belum diaktifkan di Firebase Console.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError(`Domain ${window.location.hostname} belum didaftarkan di Authorized Domains.`);
+      } else {
+        setError(err.message || 'Gagal login via Google.');
+      }
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleSimpleLogin = async (e: React.FormEvent) => {
@@ -141,6 +178,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, appName, appLogo }) => {
               >
                 {isConnecting ? <RefreshCw className="animate-spin" size={20}/> : <LogIn size={20} />}
                 {isConnecting ? 'MEMPROSES...' : 'MASUK KE SISTEM'}
+              </button>
+
+              <div className="flex items-center gap-4 my-6">
+                <div className="h-px bg-white/10 flex-1"></div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Atau</span>
+                <div className="h-px bg-white/10 flex-1"></div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isConnecting} 
+                className="w-full py-5 bg-white text-slate-900 rounded-[1.8rem] font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-4 hover:bg-slate-100 disabled:opacity-50"
+              >
+                {isConnecting ? <RefreshCw className="animate-spin" size={20}/> : <Globe size={20} className="text-blue-600" />}
+                {isConnecting ? 'MENGHUBUNGKAN...' : 'MASUK DENGAN GOOGLE'}
               </button>
             </form>
 

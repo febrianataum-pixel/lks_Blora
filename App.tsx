@@ -79,17 +79,50 @@ const App: React.FC = () => {
 
   const [storageError, setStorageError] = useState<string | null>(null);
 
-  // Auth Listener (Simplified for Custom Login)
+  // Auth Listener (Supporting both Custom Login and Firebase/Google Auth)
   useEffect(() => {
+    // 1. Cek sesi manual dari localStorage
     const savedLogged = localStorage.getItem('si-lks-islogged');
     const savedUser = localStorage.getItem('si-lks-currentuser');
     
     if (savedLogged === 'true' && savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-      setIsLoggedIn(true);
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+        setIsLoggedIn(true);
+      } catch (e) {
+        console.error("Error parsing saved user:", e);
+      }
     }
-    setAuthLoading(false);
-  }, []);
+
+    // 2. Jika Firebase Auth tersedia, dengerkan perubahan status (Google Auth)
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          const userAccount: UserAccount = {
+            id: user.uid,
+            username: user.email || user.uid,
+            password: '',
+            nama: user.displayName || 'User',
+            role: 'Admin',
+            avatar: user.photoURL || undefined,
+            createdAt: new Date().toISOString()
+          };
+          setCurrentUser(userAccount);
+          setIsLoggedIn(true);
+          // Simpan juga ke localStorage agar sinkron
+          localStorage.setItem('si-lks-islogged', 'true');
+          localStorage.setItem('si-lks-currentuser', JSON.stringify(userAccount));
+        } else {
+          // Jika logged out dari firebase tapi sesi manual ada, biarkan manual yang menangani
+          // Kecuali jika kita ingin force sync. Untuk sekarang biarkan manual persistent.
+        }
+        setAuthLoading(false);
+      });
+      return () => unsubscribe();
+    } else {
+      setAuthLoading(false);
+    }
+  }, [auth]);
 
   // Refs for latest state to avoid stale closures in onSnapshot
   const appNameRef = useRef(appName);
@@ -395,13 +428,21 @@ const App: React.FC = () => {
     addNotification('Login', 'Aplikasi');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     markLocalUpdate();
     addNotification('Logout', 'Sesi');
     setIsLoggedIn(false);
     setCurrentUser(null);
     localStorage.removeItem('si-lks-islogged');
     localStorage.removeItem('si-lks-currentuser');
+    
+    if (auth) {
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Firebase Signout Error:", err);
+      }
+    }
   };
 
   const handleNavigateToDetail = (id: string, type: 'LKS' | 'PM') => {

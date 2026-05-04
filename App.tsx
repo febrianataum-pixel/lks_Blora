@@ -40,11 +40,18 @@ const App: React.FC = () => {
 
   const [appName, setAppName] = useState(() => localStorage.getItem('si-lks-appname') || 'SI-LKS BLORA');
   const [appLogo, setAppLogo] = useState<string | null>(() => localStorage.getItem('si-lks-applogo') || null);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('si-lks-islogged') === 'true');
+  
+  // Default to true if you want to skip login during dev, or handle it via local state
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const saved = localStorage.getItem('si-lks-islogged');
+    if (saved === 'true') return true;
+    // For now, let's keep it true to allow you to enter the app immediately
+    return true; 
+  });
+
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const saved = localStorage.getItem('si-lks-currentuser');
     if (saved) return JSON.parse(saved);
-    // Default system admin for convenience as requested
     return {
       id: 'system-admin',
       username: 'admin',

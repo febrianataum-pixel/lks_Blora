@@ -7,10 +7,26 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseAppletConfig from './firebase-applet-config.json';
 
 const getFirebaseConfig = () => {
-  const envKey = import.meta.env.VITE_FIREBASE_API_KEY?.trim().replace(/^["'](.+)["']$/, '$1');
-  const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim().replace(/^["'](.+)["']$/, '$1');
-  const envAppId = import.meta.env.VITE_FIREBASE_APP_ID?.trim().replace(/^["'](.+)["']$/, '$1');
-  const envStorageBucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET?.trim().replace(/^["'](.+)["']$/, '$1');
+  // Mencoba mendeteksi variabel meskipun namanya terpotong (Common in some UIs)
+  const env = import.meta.env;
+  
+  const getValue = (primaryKey: string, alternates: string[]) => {
+    if (env[primaryKey]) return env[primaryKey];
+    for (const alt of alternates) {
+      if (env[alt]) return env[alt];
+    }
+    return null;
+  };
+
+  const rawKey = getValue('VITE_FIREBASE_API_KEY', ['VITE_FIREBASE_API_K', 'FIREBASE_API_KEY']);
+  const rawProjectId = getValue('VITE_FIREBASE_PROJECT_ID', ['VITE_FIREBASE_PROJ', 'VITE_FIREBASE_PROJECT_I', 'FIREBASE_PROJECT_ID']);
+  const rawAppId = getValue('VITE_FIREBASE_APP_ID', ['VITE_FIREBASE_APP_I', 'FIREBASE_APP_ID']);
+  const rawStorageBucket = getValue('VITE_FIREBASE_STORAGE_BUCKET', ['VITE_FIREBASE_STOR', 'FIREBASE_STORAGE_BUCKET']);
+
+  const envKey = rawKey?.trim().replace(/^["'](.+)["']$/, '$1');
+  const envProjectId = rawProjectId?.trim().replace(/^["'](.+)["']$/, '$1');
+  const envAppId = rawAppId?.trim().replace(/^["'](.+)["']$/, '$1');
+  const envStorageBucket = rawStorageBucket?.trim().replace(/^["'](.+)["']$/, '$1');
 
   // Start with default auto-provisioned config
   const config = {
@@ -21,7 +37,7 @@ const getFirebaseConfig = () => {
     appId: firebaseAppletConfig.appId,
   };
 
-  // Override with environment variables if provided
+  // Override with environment variables if found
   if (envKey) config.apiKey = envKey;
   if (envProjectId) {
     config.projectId = envProjectId;
@@ -33,9 +49,11 @@ const getFirebaseConfig = () => {
   // Log detected environment variables (keys truncated for safety)
   console.log("Firebase Configuration Check:");
   if (envKey || envProjectId || envAppId || envStorageBucket) {
-    console.log("- Using some custom Environment Variables (VITE_*)");
+    console.log("- Status: Using custom Environment Variables (VITE_*)");
+    if (!envKey) console.warn("  ! VITE_FIREBASE_API_KEY tidak terdeteksi!");
+    if (!envProjectId) console.warn("  ! VITE_FIREBASE_PROJECT_ID tidak terdeteksi!");
   } else {
-    console.log("- Using default auto-provisioned configuration.");
+    console.log("- Status: Using default auto-provisioned configuration.");
   }
   
   return config;

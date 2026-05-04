@@ -40,9 +40,16 @@ const App: React.FC = () => {
 
   const [appName, setAppName] = useState(() => localStorage.getItem('si-lks-appname') || 'SI-LKS BLORA');
   const [appLogo, setAppLogo] = useState<string | null>(() => localStorage.getItem('si-lks-applogo') || null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>({
+    id: 'system-admin',
+    username: 'admin',
+    password: '',
+    nama: 'Administrator Sistem',
+    role: 'Admin',
+    createdAt: new Date().toISOString()
+  });
+  const [authLoading, setAuthLoading] = useState(false);
 
   const [allUsers, setAllUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem('si-lks-allusers');
@@ -76,32 +83,9 @@ const App: React.FC = () => {
 
   const [storageError, setStorageError] = useState<string | null>(null);
 
-  // Auth Listener
+  // Removed Auth Listener - Accessing directly via System Admin
   useEffect(() => {
-    if (!auth) {
-      setAuthLoading(false);
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const userAccount: UserAccount = {
-          id: user.uid,
-          username: user.email || user.uid,
-          password: '',
-          nama: user.displayName || 'User',
-          role: 'User',
-          avatar: user.photoURL || undefined,
-          createdAt: new Date().toISOString()
-        };
-        setCurrentUser(userAccount);
-        setIsLoggedIn(true);
-      } else {
-        setCurrentUser(null);
-        setIsLoggedIn(false);
-      }
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
+    setAuthLoading(false);
   }, []);
 
   // Refs for latest state to avoid stale closures in onSnapshot

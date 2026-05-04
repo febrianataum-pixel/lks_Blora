@@ -342,67 +342,18 @@ const AdministrasiPage: React.FC<AdministrasiPageProps> = ({ data, setData, onNo
                 <Loader2 className="animate-spin text-blue-600" size={32} />
               ) : pdfUrl ? (
                 pdfUrl.includes('drive.google.com') ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-6">
-                    <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center text-blue-600">
-                      <FileType size={48} />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-slate-800 font-black uppercase tracking-widest mb-2">Dokumen Google Drive</p>
-                      <p className="text-slate-400 text-[10px] font-bold uppercase mb-6">Pratinjau langsung mungkin dibatasi oleh browser.</p>
-                      <a 
-                        href={pdfUrl} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-all flex items-center gap-2"
-                      >
-                        <OpenIcon size={18} /> BUKA DI TAB BARU
-                      </a>
-                    </div>
-                    <iframe src={pdfUrl.replace('/view', '/preview')} className="hidden lg:block w-full max-w-4xl h-96 mt-10 rounded-2xl border-4 border-white shadow-2xl" />
-                  </div>
+                  <iframe 
+                    src={pdfUrl.replace('/view', '/preview')} 
+                    className="w-full h-full border-none" 
+                    title="Pratinjau Dokumen"
+                  />
                 ) : (
-                  <iframe src={`${pdfUrl}#toolbar=1`} className="w-full h-full" />
+                  <iframe src={`${pdfUrl}#toolbar=1`} className="w-full h-full border-none" title="Pratinjau Dokumen" />
                 )
               ) : (
                 <p className="text-slate-400 text-xs">Gagal memuat berkas.</p>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {linkInput && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setLinkInput(null)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2rem] p-8 animate-in zoom-in-95 shadow-2xl">
-             <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                <LinkIcon size={32} />
-             </div>
-             <h3 className="text-xl font-black text-slate-800 mb-2 text-center">Tautkan Google Drive</h3>
-             <p className="text-slate-500 text-xs mb-6 text-center font-medium">Tempelkan link Google Drive untuk dokumen <span className="text-blue-600 font-bold">{linkInput.label}</span> LKS <span className="text-blue-600 font-bold">{linkInput.lks.nama}</span>.</p>
-             
-             <div className="space-y-4">
-                <div className="relative">
-                   <input 
-                      type="text" 
-                      placeholder="https://drive.google.com/file/d/..." 
-                      className="w-full px-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-sm font-medium focus:border-blue-500 transition-all"
-                      value={pastedLink}
-                      onChange={(e) => setPastedLink(e.target.value)}
-                      autoFocus
-                   />
-                </div>
-                <div className="flex gap-3">
-                   <button onClick={() => setLinkInput(null)} className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest">Batal</button>
-                   <button 
-                      onClick={() => handleSaveLink(linkInput.lks, linkInput.docKey as keyof LKSDocuments, pastedLink)} 
-                      className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-slate-900 transition-all"
-                      disabled={!pastedLink.trim()}
-                   >
-                      Simpan Link
-                   </button>
-                </div>
-             </div>
           </div>
         </div>
       )}

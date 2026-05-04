@@ -33,6 +33,7 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ label: string, url: string } | null>(null);
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -91,18 +92,20 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
   };
 
   const handleFileUpload = async (field: keyof LKSDocuments, file: File) => {
-    // Check file size (limit to 10MB as requested)
+    if (!selectedLks) return;
+
+    // Check file size (limit to 10MB)
     const MAX_SIZE = 10 * 1024 * 1024; // 10MB
     if (file.size > MAX_SIZE) {
-      alert(`Berkas terlalu besar (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maksimal ukuran berkas adalah 10MB. Silakan kompres PDF Anda terlebih dahulu jika terlalu besar.`);
+      alert(`Berkas terlalu besar (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maksimal ukuran berkas adalah 10MB.`);
       return;
     }
 
     setIsUploading(field);
     
     try {
-      // Priority: 1. Firebase Storage, 2. Google Drive, 3. Local
-      if (storage && selectedLks) {
+      // 1. Always try Firebase first if available
+      if (storage) {
         try {
           const path = `dokumen/${selectedLks.id}/${field}_${Date.now()}_${file.name}`;
           const downloadUrl = await uploadFile(file, path);
@@ -111,61 +114,39 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
           if (onNotify) onNotify('Upload Berkas', `${field} (Firebase)`);
           setIsUploading(null);
           return;
-        } catch (error: any) {
-          console.error("Firebase Upload Error:", error);
-          // Only fallback if it's not a configuration error
-          if (error.message.includes("belum dikonfigurasi")) {
-            // continue to next method
-          } else {
-            // If Firebase is configured but fails, notify user
-            alert(error.message || "Gagal upload ke Firebase Storage.");
-            // continue to fallback
+        } catch (fbError: any) {
+          console.error("Firebase Storage Error:", fbError);
+          // If it's a security/config error, we might want to tell the user but we can still try local fallback
+          if (!fbError.message.includes("belum dikonfigurasi")) {
+             console.warn("Firebase failed, attempting local fallback...");
           }
         }
       }
 
+      // 2. Fallback to Local Storage (Server)
       const formData = new FormData();
       formData.append('file', file);
 
-      const endpoint = isGoogleConnected ? '/api/upload/google-drive' : '/api/upload/local';
-
+      const endpoint = '/api/upload/local';
       const response = await fetch(endpoint, {
         method: 'POST',
-        body: formData,
-        credentials: 'include'
+        body: formData
       });
 
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const uploadData = await response.json();
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            alert("Silakan hubungkan Google Drive Anda terlebih dahulu di menu Profil.");
-          } else {
-            throw new Error(uploadData.error || "Gagal upload ke Google Drive");
-          }
-          return;
-        }
-
-        // Store the view link in the document field
-        handleChange(`dokumen.${field}`, uploadData.viewLink);
-        if (onNotify) onNotify('Upload Berkas', `${field} Berhasil`);
-        alert(`Berkas berhasil diunggah ke ${isGoogleConnected ? 'Google Drive' : 'Penyimpanan Lokal'}.`);
-      } else {
-        const text = await response.text();
-        console.error("Server returned non-JSON response:", text);
-        
-        if (text.includes("Cookie check") || text.includes("Authenticate in new window")) {
-          throw new Error("Sesi berakhir atau cookie diblokir. Silakan buka menu Profil dan klik 'VERIFIKASI SESI' atau buka aplikasi di tab baru.");
-        }
-        
-        const snippet = text.substring(0, 100);
-        throw new Error(`Server error (Bukan JSON): ${response.status} ${response.statusText}. Pesan: ${snippet}...`);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Gagal mengunggah ke server: ${response.status} ${errText.substring(0, 50)}`);
       }
+
+      const uploadData = await response.json();
+      handleChange(`dokumen.${field}`, uploadData.viewLink);
+      
+      if (onNotify) onNotify('Upload Berkas', `${field} (Lokal)`);
+      alert("Berkas berhasil diunggah ke penyimpanan lokal.");
+      
     } catch (error: any) {
-      console.error("Upload Error:", error);
-      alert(error.message || `Gagal mengunggah berkas.`);
+      console.error("Final Upload Error:", error);
+      alert(`Gagal mengunggah berkas: ${error.message}`);
     } finally {
       setIsUploading(null);
     }
@@ -388,12 +369,14 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
 
       {/* TAMPILAN MOBILE: Card View */}
       <div className="lg:hidden grid grid-cols-1 gap-4">
-        {filteredData.map((item) => (
-          <div 
-            key={item.id} 
-            className={`bg-white rounded-[2rem] p-6 shadow-sm border-y border-r border-slate-100 group relative overflow-hidden transition-all active:scale-[0.98] ${item.statusAktif === 'Aktif' ? 'border-l-8 border-l-emerald-500' : 'border-l-8 border-l-rose-500'}`} 
-            onClick={() => { setSelectedLks(item); setIsEditing(true); }}
-          >
+        {filteredData.map((item) => {
+          const isAktif = item.statusAktif === 'Aktif';
+          return (
+            <div 
+              key={item.id} 
+              className={`bg-white rounded-[2rem] p-6 shadow-sm border-r border-y border-slate-100 group relative overflow-hidden transition-all active:scale-[0.98] border-l-[14px] ${isAktif ? 'border-l-emerald-500' : 'border-l-rose-500'}`} 
+              onClick={() => { setSelectedLks(item); setIsEditing(true); }}
+            >
             <div className="flex justify-between items-start mb-4">
               <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner"><Building2 size={24}/></div>
               <div className="flex flex-col items-end gap-1">
@@ -422,7 +405,7 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className="p-2.5 text-slate-200 hover:text-red-500"><Trash2 size={18} /></button>
             </div>
           </div>
-        ))}
+        )})}
         {filteredData.length === 0 && (
           <div className="py-20 text-center text-slate-300 italic font-medium">Data LKS tidak ditemukan.</div>
         )}
@@ -431,32 +414,34 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
       {/* Tabel Utama Desktop */}
       <div id="printable-table-area" className="hidden lg:block bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-separate border-spacing-0">
             <thead>
               <tr className="bg-slate-900 text-white">
-                <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400">Lembaga & Wilayah</th>
+                <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 first:rounded-tl-[2.5rem]">Lembaga & Wilayah</th>
                 <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400">Ketua & Kontak</th>
                 <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 text-center">Akreditasi</th>
                 <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredData.map((item) => (
-                <tr 
-                  key={item.id} 
-                  className={`hover:bg-blue-50/40 transition-all cursor-pointer group border-l-8 ${item.statusAktif === 'Aktif' ? 'border-l-emerald-500' : 'border-l-rose-500'}`} 
-                  onClick={() => { setSelectedLks(item); setIsEditing(true); }}
-                >
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-2">
-                      <p className="text-base font-black text-slate-800 uppercase leading-tight">{item.nama}</p>
-                      <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${item.statusAktif === 'Aktif' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                        {item.statusAktif}
+              {filteredData.map((item) => {
+                const isAktif = item.statusAktif === 'Aktif';
+                return (
+                  <tr 
+                    key={item.id} 
+                    className="hover:bg-blue-50/40 transition-all cursor-pointer group" 
+                    onClick={() => { setSelectedLks(item); setIsEditing(true); }}
+                  >
+                    <td className={`px-8 py-6 border-l-[14px] border-b border-slate-100 ${isAktif ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-black text-slate-800 uppercase leading-tight">{item.nama}</p>
+                        <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${isAktif ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                          {item.statusAktif || 'Tidak Aktif'}
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase mt-1"><MapPin size={12} className="text-rose-500" /> {item.desa}, {item.kecamatan}</span>
-                  </td>
-                  <td className="px-8 py-6">
+                      <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase mt-1"><MapPin size={12} className="text-rose-500" /> {item.desa}, {item.kecamatan}</span>
+                    </td>
+                    <td className="px-8 py-6 border-b border-slate-100">
                     <p className="text-sm font-black text-slate-700 uppercase">{item.pengurus.ketua.nama || '-'}</p>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleWhatsApp(item.telpKetua); }}
@@ -465,13 +450,13 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                       <MessageCircle size={14} /> {item.telpKetua}
                     </button>
                   </td>
-                  <td className="px-8 py-6 text-center">
+                  <td className="px-8 py-6 text-center border-b border-slate-100">
                     <div className="inline-flex flex-col items-center justify-center min-w-[50px] min-h-[50px] p-2 rounded-xl font-black text-sm border-2 bg-slate-50">
                       <span>{item.statusAkreditasi === 'Belum' ? '-' : item.statusAkreditasi}</span>
                       {item.tahunAkreditasi && <span className="text-[8px] opacity-70 mt-0.5">{item.tahunAkreditasi}</span>}
                     </div>
                   </td>
-                  <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-8 py-6 text-right border-b border-slate-100" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       <button 
                         onClick={(e) => handleToggleVerval(e, item)} 
@@ -493,7 +478,7 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -592,18 +577,46 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                     { id: 'skKemenkumham', label: 'SK Kemenkumham' },
                     { id: 'tandaDaftar', label: 'Tanda Daftar' },
                     { id: 'sertifikatAkreditasi', label: 'Sertifikat Akreditasi' }
-                  ].map((doc) => (
-                    <div key={doc.id} className="p-5 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center text-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedLks.dokumen[doc.id as keyof LKSDocuments] ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-300 shadow-sm'}`}>
-                        {selectedLks.dokumen[doc.id as keyof LKSDocuments] ? <FileCheck size={24} /> : <FileType size={24} />}
+                  ].map((doc) => {
+                    const fileUrl = selectedLks.dokumen ? selectedLks.dokumen[doc.id as keyof LKSDocuments] : null;
+                    const isUp = isUploading === doc.id;
+
+                    return (
+                      <div key={doc.id} className={`p-5 border-2 border-dashed rounded-[2rem] flex flex-col items-center text-center gap-3 transition-all ${fileUrl ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${fileUrl ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-300 shadow-sm'}`}>
+                          {isUp ? <Loader2 size={24} className="animate-spin text-blue-500" /> : (fileUrl ? <FileCheck size={24} /> : <FileType size={24} />)}
+                        </div>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-tight">{doc.label}</p>
+                        
+                        <div className="flex flex-col gap-2 w-full">
+                          {fileUrl ? (
+                            <div className="flex gap-2 justify-center">
+                              <button 
+                                onClick={() => setPreviewDoc({ label: doc.label, url: fileUrl })} 
+                                className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1"
+                              >
+                                <Info size={10} /> Lihat
+                              </button>
+                              <button onClick={() => handleChange(`dokumen.${doc.id}`, '')} className="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:bg-rose-600 hover:text-white transition-all shadow-sm flex items-center gap-1">
+                                <Trash2 size={10} /> Hapus
+                              </button>
+                            </div>
+                          ) : (
+                            <label className={`cursor-pointer bg-white px-4 py-2 rounded-xl border text-[8px] font-black uppercase hover:bg-slate-900 hover:text-white transition-all shadow-sm ${isUp ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {isUp ? 'Mengunggah...' : 'Pilih Berkas'}
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*,application/pdf" 
+                                disabled={isUp}
+                                onChange={(e) => e.target.files?.[0] && handleFileUpload(doc.id as keyof LKSDocuments, e.target.files[0])} 
+                              />
+                            </label>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-tight">{doc.label}</p>
-                      <label className="cursor-pointer bg-white px-4 py-2 rounded-xl border text-[8px] font-black uppercase hover:bg-slate-900 hover:text-white transition-all shadow-sm">
-                        {isUploading === doc.id ? 'Loading...' : 'Pilih Berkas'}
-                        <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => e.target.files?.[0] && handleFileUpload(doc.id as keyof LKSDocuments, e.target.files[0])} />
-                      </label>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 
@@ -802,6 +815,26 @@ const LKSList: React.FC<LKSListProps> = ({ data, setData, initialSelectedId, onN
                    </div>
                 </div>
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Dokumen Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-0 lg:p-4">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => setPreviewDoc(null)}></div>
+          <div className="relative bg-white w-full max-w-6xl h-full lg:h-[92vh] lg:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-4 lg:p-6 border-b flex items-center justify-between">
+              <h3 className="text-xs lg:text-xl font-black text-slate-800 uppercase truncate pr-4">{previewDoc.label} — {selectedLks?.nama}</h3>
+              <button onClick={() => setPreviewDoc(null)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors"><X size={24} /></button>
+            </div>
+            <div className="flex-1 bg-slate-100 relative">
+              <iframe 
+                src={previewDoc.url.includes('drive.google.com') ? previewDoc.url.replace('/view', '/preview') : `${previewDoc.url}#toolbar=1`} 
+                className="w-full h-full border-none" 
+                title="Pratinjau Dokumen"
+              />
+            </div>
           </div>
         </div>
       )}

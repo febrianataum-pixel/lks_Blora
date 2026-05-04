@@ -14,7 +14,7 @@ import { MOCK_LKS, MOCK_PM, MOCK_USERS } from './constants';
 import { LKS, PenerimaManfaat as PMType, UserAccount, LetterRecord } from './types';
 
 // Firebase Imports
-import { db, auth } from './firebase';
+import { db, auth, firebaseConfig } from './firebase';
 import { doc, onSnapshot, setDoc, collection, writeBatch } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -79,36 +79,16 @@ const App: React.FC = () => {
 
   const [storageError, setStorageError] = useState<string | null>(null);
 
-  // Auth Listener Restore
+  // Auth Listener (Simplified for Custom Login)
   useEffect(() => {
-    if (!auth) {
-      setAuthLoading(false);
-      return;
+    const savedLogged = localStorage.getItem('si-lks-islogged');
+    const savedUser = localStorage.getItem('si-lks-currentuser');
+    
+    if (savedLogged === 'true' && savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+      setIsLoggedIn(true);
     }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const userAccount: UserAccount = {
-          id: user.uid,
-          username: user.email || user.uid,
-          password: '',
-          nama: user.displayName || 'User',
-          role: 'Admin', // Give admin role by default for your use case
-          avatar: user.photoURL || undefined,
-          createdAt: new Date().toISOString()
-        };
-        setCurrentUser(userAccount);
-        setIsLoggedIn(true);
-        localStorage.setItem('si-lks-islogged', 'true');
-        localStorage.setItem('si-lks-currentuser', JSON.stringify(userAccount));
-      } else {
-        setCurrentUser(null);
-        setIsLoggedIn(false);
-        localStorage.removeItem('si-lks-islogged');
-        localStorage.removeItem('si-lks-currentuser');
-      }
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
+    setAuthLoading(false);
   }, []);
 
   // Refs for latest state to avoid stale closures in onSnapshot
@@ -173,7 +153,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const projectId = firebaseConfig.projectId;
     if (!projectId || !db) {
       setSyncStatus('idle');
       return;
@@ -259,7 +239,7 @@ const App: React.FC = () => {
 
   // Sync Logic
   useEffect(() => {
-    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const projectId = firebaseConfig.projectId;
     if (syncStatus !== 'connected' || isRemoteUpdate.current || !projectId || !db) return;
 
     const configToSync = {
@@ -288,7 +268,7 @@ const App: React.FC = () => {
 
   // Optimized Partial Sync LKS
   useEffect(() => {
-    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const projectId = firebaseConfig.projectId;
     if (syncStatus !== 'connected' || isRemoteUpdate.current || !projectId || !db) return;
 
     const timeout = setTimeout(async () => {
@@ -341,7 +321,7 @@ const App: React.FC = () => {
 
   // Optimized Partial Sync PM
   useEffect(() => {
-    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const projectId = firebaseConfig.projectId;
     if (syncStatus !== 'connected' || isRemoteUpdate.current || !projectId || !db) return;
 
     const timeout = setTimeout(async () => {
@@ -409,21 +389,19 @@ const App: React.FC = () => {
     markLocalUpdate();
     setCurrentUser(user);
     setIsLoggedIn(true);
+    localStorage.setItem('si-lks-islogged', 'true');
+    localStorage.setItem('si-lks-currentuser', JSON.stringify(user));
     setActivePage('dashboard');
     addNotification('Login', 'Aplikasi');
   };
 
-  const handleLogout = async () => {
-    if (!auth) return;
-    try {
-      await signOut(auth);
-      markLocalUpdate();
-      addNotification('Logout', 'Sesi');
-      setIsLoggedIn(false);
-      setCurrentUser(null);
-    } catch (err) {
-      console.error("Logout Error:", err);
-    }
+  const handleLogout = () => {
+    markLocalUpdate();
+    addNotification('Logout', 'Sesi');
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+    localStorage.removeItem('si-lks-islogged');
+    localStorage.removeItem('si-lks-currentuser');
   };
 
   const handleNavigateToDetail = (id: string, type: 'LKS' | 'PM') => {

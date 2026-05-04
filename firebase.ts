@@ -7,59 +7,46 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseAppletConfig from './firebase-applet-config.json';
 
 const getFirebaseConfig = () => {
-  // Mencoba mendeteksi variabel meskipun namanya terpotong (Common in some UIs)
   const env = import.meta.env;
   
-  const getValue = (primaryKey: string, alternates: string[]) => {
-    if (env[primaryKey]) return env[primaryKey];
-    for (const alt of alternates) {
-      if (env[alt]) return env[alt];
-    }
-    return null;
-  };
+  // Ambil dari localStorage (untuk input manual dari UI)
+  const localKey = localStorage.getItem('si-lks-firebase-apikey');
+  const localProjectId = localStorage.getItem('si-lks-firebase-projectid');
+  const localAppId = localStorage.getItem('si-lks-firebase-appid');
+  const localStorageBucket = localStorage.getItem('si-lks-firebase-storage');
 
-  const rawKey = getValue('VITE_FIREBASE_API_KEY', ['VITE_FIREBASE_API_K', 'FIREBASE_API_KEY']);
-  const rawProjectId = getValue('VITE_FIREBASE_PROJECT_ID', ['VITE_FIREBASE_PROJ', 'VITE_FIREBASE_PROJECT_I', 'FIREBASE_PROJECT_ID']);
-  const rawAppId = getValue('VITE_FIREBASE_APP_ID', ['VITE_FIREBASE_APP_I', 'FIREBASE_APP_ID']);
-  const rawStorageBucket = getValue('VITE_FIREBASE_STORAGE_BUCKET', ['VITE_FIREBASE_STOR', 'FIREBASE_STORAGE_BUCKET']);
+  // Standard VITE variable names
+  const envKey = env.VITE_FIREBASE_API_KEY || env.VITE_FIREBASE_API_K;
+  const envProjectId = env.VITE_FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJ;
+  const envAppId = env.VITE_FIREBASE_APP_ID || env.VITE_FIREBASE_APP_I;
+  const envStorageBucket = env.VITE_FIREBASE_STORAGE_BUCKET || env.VITE_FIREBASE_STOR;
 
-  const envKey = rawKey?.trim().replace(/^["'](.+)["']$/, '$1');
-  const envProjectId = rawProjectId?.trim().replace(/^["'](.+)["']$/, '$1');
-  const envAppId = rawAppId?.trim().replace(/^["'](.+)["']$/, '$1');
-  const envStorageBucket = rawStorageBucket?.trim().replace(/^["'](.+)["']$/, '$1');
-
-  // Start with default auto-provisioned config
+  // Use auto-provisioned config as base
   const config = {
-    apiKey: firebaseAppletConfig.apiKey,
+    apiKey: localKey || (envKey ? envKey.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.apiKey),
     authDomain: firebaseAppletConfig.authDomain,
-    projectId: firebaseAppletConfig.projectId,
-    storageBucket: firebaseAppletConfig.storageBucket,
-    appId: firebaseAppletConfig.appId,
+    projectId: localProjectId || (envProjectId ? envProjectId.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.projectId),
+    storageBucket: localStorageBucket || (envStorageBucket ? envStorageBucket.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.storageBucket),
+    appId: localAppId || (envAppId ? envAppId.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.appId),
   };
 
-  // Override with environment variables if found
-  if (envKey) config.apiKey = envKey;
-  if (envProjectId) {
-    config.projectId = envProjectId;
-    config.authDomain = `${envProjectId}.firebaseapp.com`;
+  // Update authDomain based on projectId
+  if (config.projectId) {
+    config.authDomain = `${config.projectId}.firebaseapp.com`;
   }
-  if (envAppId) config.appId = envAppId;
-  if (envStorageBucket) config.storageBucket = envStorageBucket;
 
-  // Log detected environment variables (keys truncated for safety)
-  console.log("Firebase Configuration Check:");
-  if (envKey || envProjectId || envAppId || envStorageBucket) {
-    console.log("- Status: Using custom Environment Variables (VITE_*)");
-    if (!envKey) console.warn("  ! VITE_FIREBASE_API_KEY tidak terdeteksi!");
-    if (!envProjectId) console.warn("  ! VITE_FIREBASE_PROJECT_ID tidak terdeteksi!");
+  if (localKey || localProjectId) {
+    console.log("Firebase: Menggunakan konfigurasi MANUAL dari Browser Storage");
+  } else if (envKey || envProjectId) {
+    console.log("Firebase: Menggunakan konfigurasi dari Environment Variables");
   } else {
-    console.log("- Status: Using default auto-provisioned configuration.");
+    console.log("Firebase: Menggunakan konfigurasi default (Auto-provisioned)");
   }
   
   return config;
 };
 
-const firebaseConfig = getFirebaseConfig();
+export const firebaseConfig = getFirebaseConfig();
 
 // Logging untuk mempermudah debug (pastikan key tidak bocor sepenuhnya di log publik)
 console.log(`Firebase Project ID: ${firebaseConfig.projectId}`);

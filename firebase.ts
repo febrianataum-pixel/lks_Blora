@@ -7,41 +7,18 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseAppletConfig from './firebase-applet-config.json';
 
 const getFirebaseConfig = () => {
-  const env = import.meta.env;
-  
-  // Ambil dari localStorage (untuk input manual dari UI)
-  const localKey = localStorage.getItem('si-lks-firebase-apikey');
-  const localProjectId = localStorage.getItem('si-lks-firebase-projectid');
-  const localAppId = localStorage.getItem('si-lks-firebase-appid');
-  const localStorageBucket = localStorage.getItem('si-lks-firebase-storage');
-
-  // Standard VITE variable names
-  const envKey = env.VITE_FIREBASE_API_KEY || env.VITE_FIREBASE_API_K;
-  const envProjectId = env.VITE_FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJ;
-  const envAppId = env.VITE_FIREBASE_APP_ID || env.VITE_FIREBASE_APP_I;
-  const envStorageBucket = env.VITE_FIREBASE_STORAGE_BUCKET || env.VITE_FIREBASE_STOR;
-
-  // Use auto-provisioned config as base
+  // Hardcoded configuration as requested by the user
   const config = {
-    apiKey: localKey || (envKey ? envKey.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.apiKey),
-    authDomain: firebaseAppletConfig.authDomain,
-    projectId: localProjectId || (envProjectId ? envProjectId.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.projectId),
-    storageBucket: localStorageBucket || (envStorageBucket ? envStorageBucket.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.storageBucket),
-    appId: localAppId || (envAppId ? envAppId.trim().replace(/^["'](.+)["']$/, '$1') : firebaseAppletConfig.appId),
+    apiKey: "AIzaSyD8x_6Fs7vHf3lhO4pCFbD7p7y06JJCIhM",
+    authDomain: "lksblora-8bf69.firebaseapp.com",
+    projectId: "lksblora-8bf69",
+    storageBucket: "lksblora-8bf69.firebasestorage.app",
+    messagingSenderId: "876278261984",
+    appId: "1:876278261984:web:c8a5055d52e615c6acc885",
+    measurementId: "G-86L9F0BJ7F"
   };
 
-  // Update authDomain based on projectId
-  if (config.projectId) {
-    config.authDomain = `${config.projectId}.firebaseapp.com`;
-  }
-
-  if (localKey || localProjectId) {
-    console.log("Firebase: Menggunakan konfigurasi MANUAL dari Browser Storage");
-  } else if (envKey || envProjectId) {
-    console.log("Firebase: Menggunakan konfigurasi dari Environment Variables");
-  } else {
-    console.log("Firebase: Menggunakan konfigurasi default (Auto-provisioned)");
-  }
+  console.log(`Firebase Active Project: ${config.projectId}`);
   
   return config;
 };

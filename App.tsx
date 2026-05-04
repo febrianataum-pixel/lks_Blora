@@ -42,26 +42,9 @@ const App: React.FC = () => {
   const [appLogo, setAppLogo] = useState<string | null>(() => localStorage.getItem('si-lks-applogo') || null);
   
   // Default to true if you want to skip login during dev, or handle it via local state
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const saved = localStorage.getItem('si-lks-islogged');
-    if (saved === 'true') return true;
-    // For now, let's keep it true to allow you to enter the app immediately
-    return true; 
-  });
-
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    const saved = localStorage.getItem('si-lks-currentuser');
-    if (saved) return JSON.parse(saved);
-    return {
-      id: 'system-admin',
-      username: 'admin',
-      password: '',
-      nama: 'Administrator Sistem',
-      role: 'Admin',
-      createdAt: new Date().toISOString()
-    };
-  });
-  const [authLoading, setAuthLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const [allUsers, setAllUsers] = useState<UserAccount[]>(() => {
@@ -96,9 +79,36 @@ const App: React.FC = () => {
 
   const [storageError, setStorageError] = useState<string | null>(null);
 
-  // Removed Auth Listener - Accessing directly via System Admin
+  // Auth Listener Restore
   useEffect(() => {
-    setAuthLoading(false);
+    if (!auth) {
+      setAuthLoading(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const userAccount: UserAccount = {
+          id: user.uid,
+          username: user.email || user.uid,
+          password: '',
+          nama: user.displayName || 'User',
+          role: 'Admin', // Give admin role by default for your use case
+          avatar: user.photoURL || undefined,
+          createdAt: new Date().toISOString()
+        };
+        setCurrentUser(userAccount);
+        setIsLoggedIn(true);
+        localStorage.setItem('si-lks-islogged', 'true');
+        localStorage.setItem('si-lks-currentuser', JSON.stringify(userAccount));
+      } else {
+        setCurrentUser(null);
+        setIsLoggedIn(false);
+        localStorage.removeItem('si-lks-islogged');
+        localStorage.removeItem('si-lks-currentuser');
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   // Refs for latest state to avoid stale closures in onSnapshot

@@ -483,22 +483,7 @@ const App: React.FC = () => {
   return (
     <div className="h-screen bg-[#F5F5F7] flex flex-col overflow-hidden font-inter relative">
       {/* macOS Menu Bar (Top) */}
-      <header className="h-8 bg-white/70 backdrop-blur-xl border-b border-black/5 flex items-center justify-between px-4 sticky top-0 z-50 no-print select-none">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 mr-2">
-            <div className="w-3 h-3 rounded-full bg-[#FF5F57] border border-black/5"></div>
-            <div className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-black/5"></div>
-            <div className="w-3 h-3 rounded-full bg-[#28C840] border border-black/5"></div>
-          </div>
-          <div className="flex items-center gap-4 text-[13px] font-semibold text-slate-800">
-            <span className="font-black">{appName}</span>
-            <span className="font-medium opacity-60 hidden sm:inline">File</span>
-            <span className="font-medium opacity-60 hidden sm:inline">Edit</span>
-            <span className="font-medium opacity-60 hidden sm:inline">View</span>
-            <span className="font-medium opacity-60 hidden sm:inline">Window</span>
-            <span className="font-medium opacity-60 hidden sm:inline">Help</span>
-          </div>
-        </div>
+      <header className="h-8 bg-white/70 backdrop-blur-xl border-b border-black/5 flex items-center justify-end px-4 sticky top-0 z-50 no-print select-none">
         <div className="flex items-center gap-4 text-[13px] font-semibold text-slate-800">
           <div className="flex items-center gap-1.5">
             <div className={`w-2 h-2 rounded-full ${syncStatus === 'connected' ? 'bg-emerald-500' : syncStatus === 'syncing' ? 'bg-blue-500 animate-pulse' : syncStatus === 'error' ? 'bg-red-500' : 'bg-slate-300'}`}></div>
